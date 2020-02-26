@@ -3302,8 +3302,15 @@ func (c *client) processPingTimer() {
 			c.closeConnection(StaleConnection)
 			return
 		}
-		// Send PING
-		c.sendPing()
+
+		if c.flags.isSet(connectReceived) || c.flags.isSet(firstPongSent) || c.kind != CLIENT {
+			// Send PING
+			c.sendPing()
+		} else {
+			c.Debugf("Faking PING until connect message, timeout in %d intervals",
+				c.srv.getOpts().MaxPingsOut-c.ping.out)
+			c.ping.out++
+		}
 	}
 
 	// Reset to fire again.
