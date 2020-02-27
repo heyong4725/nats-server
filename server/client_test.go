@@ -1918,13 +1918,11 @@ func TestClientIPv6Address(t *testing.T) {
 
 func TestNoPingBeforeConnect(t *testing.T) {
 	opts := DefaultOptions()
-	// Make it very slow so that the INFO sent to client fails...
 	opts.PingInterval = time.Second
-	opts.MaxPingsOut = 2
+	opts.MaxPingsOut = 2 // will cause 3 intervals
 	s := RunServer(opts)
 	defer s.Shutdown()
 
-	// Expect server to close the connection, withing timeout
 	url := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
 	conn, err := net.Dial("tcp", url)
 	if err != nil {
@@ -1934,13 +1932,11 @@ func TestNoPingBeforeConnect(t *testing.T) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 
+	start := time.Now()
+
 	line, _, err := reader.ReadLine()
-	t.Logf("connect %s:%s", url, line)
+	t.Logf("Connect %s:%s", url, line)
 
-	timeout := time.Now().Add(8 * time.Second)
-
-	deadline := timeout.Add(time.Second)
-	conn.SetReadDeadline(deadline)
 	line, _, err = reader.ReadLine()
 
 	if err != nil {
@@ -1953,5 +1949,9 @@ func TestNoPingBeforeConnect(t *testing.T) {
 
 	if _, _, err = reader.ReadLine(); err != io.EOF {
 		t.Fatalf("Expected EOF, got: %s", err)
+	}
+
+	if time.Now().Sub(start) < 3*time.Second {
+		t.Fatalf("Expected this to take 3 seconds")
 	}
 }
